@@ -1,0 +1,44 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# model files (too large for git, build on each jetson)
+*.engine
+*.onnx
+
+# runtime temp files
+*.tmp
+*.bak
+*.arbiter_bak
+*.bak2
+
+# logs
+*.csv
+actuator_log.csv
+serialLogs.csv
+
+# environment and secrets
+.env
+.env.*
+
+# editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# os
+.DS_Store
+Thumbs.db
+
+# openpilot build artifacts
+*.o
+*.so
+*.a
+*.d
+.sconsign.dblite
+a.out

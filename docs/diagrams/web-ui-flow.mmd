@@ -1,0 +1,30 @@
+flowchart LR
+    B["Browser\nhttp://jetson-ip:5000"] --> ENG["Engage Button"]
+    B --> LFB["Lane Follow Button"]
+    B --> EAB["Exp Auto Button"]
+    B --> JOY["Manual Joystick"]
+
+    ENG -->|writes| EF["/tmp/engage\n(0 or 1)"]
+    LFB -->|writes| LFF["/tmp/lane_follow\n(0 or 1)"]
+    EAB -->|writes| EAF["/tmp/exp_auto\n(0 or 1)"]
+    JOY -->|writes| JSF["/tmp/joystick\n(throttle,steering)"]
+
+    EF --> CHK["Every script checks\n/tmp/engage first"]
+    LFF --> LFP["lane_follow.py\nstarts running the model"]
+    EAF --> EAP["exp_auto.py\nstarts autonomous driving\n(main autonomy)"]
+    EF --> EAP
+    JSF --> OSP["output_serial.py\nsends to Arduino"]
+
+    style B fill:#1a3a5c,color:#fff,stroke:#0d1f33
+    style ENG fill:#1b4332,color:#fff,stroke:#0d2618
+    style LFB fill:#5c3a1a,color:#fff,stroke:#3d2611
+    style EAB fill:#7b2d26,color:#fff,stroke:#4a1a17
+    style JOY fill:#3d1f56,color:#fff,stroke:#261338
+    style EF fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style LFF fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style EAF fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style JSF fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style CHK fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style LFP fill:#1b4332,color:#fff,stroke:#0d2618
+    style EAP fill:#7b2d26,color:#fff,stroke:#4a1a17
+    style OSP fill:#2c2c2c,color:#fff,stroke:#1a1a1a

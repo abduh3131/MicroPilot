@@ -1,0 +1,62 @@
+flowchart TD
+    subgraph Writers["Writers"]
+        WC["webcam_capture.py"]
+        LF["lane_follow.py"]
+        EA["exp_auto.py"]
+        WEB["web UI :5000"]
+    end
+
+    subgraph Files["/tmp/ files"]
+        CF["/tmp/camera_frame.jpg"]
+        MO["/tmp/model_output.json"]
+        JS["/tmp/joystick"]
+        ENG["/tmp/engage"]
+        LFF["/tmp/lane_follow"]
+        EXP["/tmp/exp_auto"]
+    end
+
+    subgraph Readers["Readers"]
+        LF2["lane_follow.py"]
+        EA2["exp_auto.py"]
+        OS["output_serial.py"]
+        OV["overlay_stream.py"]
+    end
+
+    WC --> CF
+    LF -->|always| MO
+    LF -->|"Lane Follow mode"| JS
+    EA -->|"Exp Auto mode"| JS
+    WEB -->|"manual joystick"| JS
+    WEB --> ENG
+    WEB --> LFF
+    WEB --> EXP
+
+    CF --> LF2
+    MO --> EA2
+    MO --> OV
+    JS --> OS
+    ENG --> LF2
+    ENG --> EA2
+    LFF --> LF2
+    EXP --> EA2
+
+    OS -->|serial| ARD["Arduino"]
+
+    style Writers fill:#0d0d0d,color:#fff,stroke:#333
+    style Files fill:#0d0d0d,color:#fff,stroke:#333
+    style Readers fill:#0d0d0d,color:#fff,stroke:#333
+    style CF fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style MO fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style JS fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style ENG fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style LFF fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style EXP fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style WC fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style LF fill:#1b4332,color:#fff,stroke:#0d2618
+    style EA fill:#7b2d26,color:#fff,stroke:#4a1a17
+    style WEB fill:#1a3a5c,color:#fff,stroke:#0d1f33
+    style LF2 fill:#1b4332,color:#fff,stroke:#0d2618
+    style EA2 fill:#7b2d26,color:#fff,stroke:#4a1a17
+    style OS fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style OV fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style ARD fill:#3d1f56,color:#fff,stroke:#261338

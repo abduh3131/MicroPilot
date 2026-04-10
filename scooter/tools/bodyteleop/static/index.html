@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MetroMove | Autonomous Transit</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@^3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --bg:     #0a0a0a;
+      --card:   #121212;
+      --card2:  #1c1c1c;
+      --border: #2a2a2a;
+      --accent: #0077FF;
+      --orange: #FF4D00;
+      --green:  #00E676;
+      --red:    #FF3300;
+      --yellow: #F5C518;
+      --blue:   #82B4FF;
+      --text:   #F0EDE8;
+      --muted:  #757575;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .syne { font-family: 'Syne', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .mat  { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align: middle; }
+    .mat-fill { font-variation-settings: 'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
+
+    #app {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      padding-bottom: 76px;
+    }
+
+    /* TOP BAR */
+    #topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .wordmark {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem;
+      letter-spacing: 0.15em; color: var(--text); text-transform: uppercase;
+      border-bottom: 3px solid var(--accent); padding-bottom: 2px;
+    }
+    .pre-blob { display:inline-flex; background:#252525; border-radius:50%; height:8px; width:8px; font-size:0; }
+    .blob { background:#e74c3c; box-shadow:0 0 0 0 rgba(231,76,60,1); animation:pulse 2s infinite; }
+    @keyframes pulse {
+      0%   { transform:scale(0.95); box-shadow:0 0 0 0 rgba(255,51,0,0.7); }
+      70%  { transform:scale(1.1);  box-shadow:0 0 0 6px rgba(255,51,0,0); }
+      100% { transform:scale(0.95); box-shadow:0 0 0 0 rgba(255,51,0,0); }
+    }
+
+    /* MAIN */
+    #main-content { padding:14px; display:flex; flex-direction:column; gap:12px; flex:1; }
+
+    /* VIDEO */
+    #video-wrap {
+      position:relative; width:100%; aspect-ratio:16/9;
+      border-radius:14px; overflow:hidden;
+      background:#050505; border:1px solid var(--border);
+    }
+    #overlay-feed { width:100%; height:100%; object-fit:cover; opacity:0.9; }
+    .vid-badge {
+      position:absolute; top:10px; left:12px;
+      display:flex; align-items:center; gap:5px;
+      background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);
+      border-radius:999px; padding:3px 10px;
+    }
+    .live-dot { width:6px; height:6px; border-radius:50%; background:#ef4444; animation:pulse 2s infinite; }
+    .vid-badge span { font-size:9px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#fff; }
+    #speed-display { position:absolute; bottom:10px; right:12px; text-align:right; }
+    #speed-display .spd-label { font-size:8px; color:rgba(255,255,255,0.35); text-transform:uppercase; font-weight:700; letter-spacing:0.12em; }
+    #speed-display .spd-val { font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; color:#fff; line-height:1; font-style:italic; }
+    #speed-display .spd-unit { font-size:8px; opacity:0.45; margin-left:2px; }
+
+    /* TABS */
+    .tab-panel { display:none; flex-direction:column; gap:12px; }
+    .tab-panel.active { display:flex; }
+
+    /* CARDS */
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; }
+    .card-sm { background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+    .card-label { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.18em; color:var(--muted); margin-bottom:8px; }
+
+    /* GPS PILL */
+    #gps-pill {
+      display:flex; align-items:center; justify-content:center; gap:7px;
+      padding:7px 18px; background:var(--card2); border:1px solid var(--border);
+      border-radius:999px; transition:border-color 0.3s;
+    }
+    #gps-pill.fix { border-color:rgba(0,119,255,0.4); }
+    #gps-pill.nav { border-color:rgba(255,214,0,0.4); }
+    #gps-status { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); transition:color 0.3s; }
+
+    /* MAP */
+    #map-wrap { position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--border); }
+    #map { height:270px; width:100%; background:#0e0e0e; }
+    .leaflet-container { background:#0e0e0e !important; }
+    .leaflet-tile { filter:brightness(0.6) saturate(0.45); }
+    .leaflet-control-attribution { background:rgba(0,0,0,0.65) !important; color:#444 !important; font-size:8px !important; }
+    .leaflet-control-zoom a { background:var(--card2) !important; color:var(--text) !important; border-color:var(--border) !important; }
+    #map-nofix { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0a0a; }
+
+    /* NAV PANELS */
+    #nav-idle { text-align:center; }
+    #summon-btn {
+      display:none; width:100%; margin-top:12px;
+      background:var(--accent); border:none; border-radius:14px;
+      cursor:pointer; padding:1px;
+      box-shadow:0 4px 0px #0050ac; transition:transform 0.1s, box-shadow 0.1s;
+    }
+    #summon-btn:active { transform:translateY(2px); box-shadow:0 2px 0px #0050ac; }
+    .summon-inner {
+      padding:16px 0; display:flex; flex-direction:column; align-items:center; gap:3px;
+      border:1px solid rgba(255,255,255,0.15); border-radius:13px;
+    }
+    .summon-title { font-family:'Syne',sans-serif; font-size:13px; font-weight:800; color:#fff; letter-spacing:0.2em; text-transform:uppercase; }
+    #summon-coords { font-size:9px; color:rgba(255,255,255,0.7); font-weight:700; }
+
+    #nav-active { display:none; }
+    .nav-badge { display:flex; align-items:center; gap:7px; }
+    .nav-dot { width:7px; height:7px; border-radius:50%; background:var(--yellow); animation:pulse 1.5s infinite; }
+    .nav-label { font-family:'Syne',sans-serif; font-size:10px; font-weight:800; color:var(--yellow); letter-spacing:0.22em; text-transform:uppercase; }
+    #cancel-btn { background:var(--red); color:#fff; border:none; border-radius:999px; padding:6px 18px; font-size:9px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; }
+    #nav-dist { font-family:'Syne',sans-serif; font-size:3rem; font-weight:800; color:var(--green); text-align:center; line-height:1; }
+    .nav-stat-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .nav-stat { background:var(--card2); border-radius:10px; padding:8px 4px; text-align:center; }
+    .nav-stat-label { font-size:8px; color:var(--muted); text-transform:uppercase; font-weight:700; letter-spacing:0.1em; margin-bottom:3px; }
+    .nav-stat-val { font-family:'Syne',sans-serif; font-size:12px; font-weight:700; color:rgba(240,237,232,0.75); }
+    #nav-log { background:#060606; border-radius:8px; padding:8px 10px; font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--green); line-height:1.5; word-break:break-all; margin-top:10px; }
+
+    #nav-arrived { display:none; text-align:center; background:rgba(0,230,118,0.05); border:1px solid rgba(0,230,118,0.2); border-radius:16px; padding:24px 16px; }
+    #arrived-ok-btn { background:var(--green); color:#032e12; border:none; border-radius:999px; padding:9px 28px; font-size:10px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; margin-top:12px; }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+    /* ── ENGAGE BUTTON ── */
+    #engage-btn {
+      width:100%; border-radius:16px; padding:28px 20px;
+      cursor:pointer; transition:all 0.2s; text-align:center;
+      background:transparent;
+      border:2px solid var(--green);
+    }
+    #engage-btn.armed {
+      background:linear-gradient(135deg,#FF3300,#CC2200);
+      border:4px solid #fff;
+      box-shadow:0 0 40px rgba(255,51,0,0.3), inset 0 0 0 3px #CC2200;
+    }
+    #engage-main-text {
+      font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800;
+      letter-spacing:0.08em; text-transform:uppercase;
+      color:var(--green); display:block; transition:color 0.2s;
+    }
+    #engage-btn.armed #engage-main-text { color:#fff; }
+    #engage-sub {
+      font-size:9px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase;
+      color:rgba(240,237,232,0.3); display:block; margin-top:4px; transition:color 0.2s;
+    }
+    #engage-btn.armed #engage-sub { color:rgba(255,255,255,0.6); }
+
+    /* OLD COMPAT BUTTONS - hidden */
+    #autopilot-btn, #exp-auto-btn, #lane-follow-btn,
+    #engage-status, #engage-main-text-old { display:none; }
+
+    /* MODE GRID */
+    .mode-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    .mode-btn {
+      background:var(--card2); border:1px solid var(--border); border-radius:12px;
+      padding:12px 8px; display:flex; flex-direction:column; align-items:center;
+      justify-content:center; gap:6px; cursor:pointer; transition:all 0.15s; min-height:74px;
+    }
+    .mode-btn:active { transform:scale(0.95); }
+    .mode-label { font-size:9px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); text-align:center; line-height:1.3; }
+    .mode-bar { height:3px; width:28px; border-radius:2px; background:rgba(255,255,255,0.1); transition:background 0.2s, box-shadow 0.2s; }
+    .mode-sub { font-size:7px; font-weight:700; text-transform:uppercase; color:rgba(255,255,255,0.2); }
+    .mode-btn.active-mode { border-color:var(--green); background:rgba(0,230,118,0.06); }
+    .mode-btn.active-mode .mode-label { color:var(--green); }
+    .mode-btn.active-mode .mode-bar { background:var(--green); box-shadow:0 0 8px rgba(0,230,118,0.4); }
+    .mode-btn.active-mode .mode-sub { color:rgba(0,230,118,0.6); }
+
+    /* DRIVE MODE CARD */
+    #drive-mode-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; }
+    #drive-mode-label { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.18em; color:var(--muted); margin-bottom:6px; }
+    #drive-mode-status { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:rgba(240,237,232,0.4); margin-bottom:14px; font-family:'JetBrains Mono',monospace; }
+
+    /* WASD */
+    .wasd-lockout-banner { display:none; text-align:center; padding:7px; background:rgba(255,77,0,0.08); border:1px solid rgba(255,77,0,0.2); border-radius:8px; font-size:8px; font-weight:700; color:var(--orange); letter-spacing:0.12em; text-transform:uppercase; }
+    #wasd-wrap.locked { opacity:0.3; pointer-events:none; }
+    .keys {
+      user-select:none; -webkit-user-select:none; touch-action:manipulation; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      width:64px; height:64px; background:var(--card2); border:1px solid var(--border);
+      border-radius:12px; font-family:'Syne',sans-serif; font-weight:800; font-size:1.4rem;
+      color:var(--text); transition:background 0.07s, transform 0.07s;
+    }
+    .keys:active { transform:scale(0.91); }
+
+    /* ACTUATOR LOG */
+    #actuator-log { max-height:180px; overflow-y:auto; font-family:'JetBrains Mono',monospace; font-size:10px; line-height:1.65; color:#4ADE80; }
+    #actuator-log::-webkit-scrollbar { width:3px; }
+    #actuator-log::-webkit-scrollbar-thumb { background:#222; border-radius:2px; }
+
+    /* BOTTOM NAV */
+    #bottom-nav {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; height:72px;
+      display:flex; justify-content:space-around; align-items:center;
+      padding:0 32px 8px;
+      background:rgba(12,12,12,0.92); backdrop-filter:blur(20px);
+      border-top:1px solid var(--border); border-radius:20px 20px 0 0;
+      box-shadow:0 -8px 32px rgba(0,0,0,0.8); z-index:100;
+    }
+    .nav-tab { display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 28px; border-radius:12px; border:none; background:transparent; cursor:pointer; color:rgba(240,237,232,0.3); transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+    .nav-tab .mat { font-size:20px; }
+    .nav-tab .tab-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; }
+    .nav-tab.active { background:var(--card2); color:var(--accent); }
+  </style>
+</head>
+<body>
+  <audio id="audio" autoplay style="display:none"></audio>
+  <video id="video" playsinline autoplay muted loop style="display:none"></video>
+
+  <div id="app" role="main">
+
+    <!-- TOP BAR -->
+    <header id="topbar">
+      <div style="display:flex;align-items:center;gap:9px;">
+        <span class="mat mat-fill" style="color:var(--accent);font-size:20px;">sensors</span>
+        <span class="wordmark">MetroMove</span>
+      </div>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
+        <i class="bi bi-shield-check" style="color:var(--accent);font-size:16px;"></i>
+      </div>
+      <i class="bi bi-speaker-fill pre-blob" style="display:none"></i>
+      <i class="bi bi-mic-fill pre-blob" style="display:none"></i>
+      <i class="bi bi-camera-video-fill pre-blob" style="display:none"></i>
+      <span id="ping-time" style="display:none">-</span>
+      <span id="battery" style="display:none">-</span>
+    </header>
+
+    <div id="main-content">
+
+      <!-- VIDEO always visible -->
+      <div id="video-wrap">
+        <img id="overlay-feed" src="/video_feed" alt="Live feed"/>
+        <div class="vid-badge"><div class="live-dot"></div><span>LIVE</span></div>
+
+      </div>
+
+      <!-- NAVIGATE TAB -->
+      <div id="tab-navigate" class="tab-panel active" role="tabpanel">
+        <div style="display:flex;justify-content:center;">
+          <div id="gps-pill">
+            <span class="mat mat-fill" id="gps-icon" style="font-size:13px;color:var(--muted);">satellite_alt</span>
+            <span id="gps-status">Waiting for GPS fix...</span>
+          </div>
+        </div>
+        <div id="map-wrap">
+          <div id="map"></div>
+          <div id="map-nofix">
+            <span class="mat" style="font-size:44px;color:rgba(255,255,255,0.06);margin-bottom:8px;">map</span>
+            <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.12);text-transform:uppercase;letter-spacing:0.18em;">Waiting for GPS fix</span>
+          </div>
+        </div>
+        <div id="nav-idle">
+          <p style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.15em;text-align:center;">Tap the map to set a destination</p>
+          <button id="summon-btn">
+            <div class="summon-inner">
+              <span class="summon-title">Summon MetroMove</span>
+              <span id="summon-coords"></span>
+            </div>
+          </button>
+        </div>
+        <div id="nav-active" class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div class="nav-badge"><div class="nav-dot"></div><span class="nav-label">Navigating</span></div>
+            <button id="cancel-btn">Cancel</button>
+          </div>
+          <div id="nav-dist">-- m</div>
+          <div style="font-size:9px;color:var(--muted);text-align:center;margin:4px 0 10px;">to destination</div>
+          <div class="nav-stat-grid">
+            <div class="nav-stat"><div class="nav-stat-label">ETA</div><div class="nav-stat-val" id="nav-eta">--</div></div>
+            <div class="nav-stat"><div class="nav-stat-label">Bearing</div><div class="nav-stat-val" id="nav-bearing">--°</div></div>
+            <div class="nav-stat"><div class="nav-stat-label">Speed</div><div class="nav-stat-val" id="nav-speed">--</div></div>
+          </div>
+          <div id="nav-log">Initializing...</div>
+        </div>
+        <div id="nav-arrived">
+          <span class="mat mat-fill" style="font-size:44px;color:var(--green);display:block;margin-bottom:6px;">check_circle</span>
+          <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--green);text-transform:uppercase;">Arrived</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:4px;">Destination reached</div>
+          <button id="arrived-ok-btn">OK</button>
+        </div>
+        <div>
+          <span id="nav-battery" style="display:none">--</span>
+          <div class="card-sm"><div class="card-label">Distance</div><div style="display:flex;align-items:flex-end;justify-content:space-between;"><span id="nav-distance" style="font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:800;">--<span style="font-size:11px;font-weight:500;margin-left:3px;">m</span></span><span class="mat" style="font-size:20px;color:var(--blue);">route</span></div></div>
+        </div>
+      </div>
+
+      <!-- CONTROLS TAB -->
+      <div id="tab-controls" class="tab-panel" role="tabpanel">
+
+        <!-- ENGAGE BUTTON - clean implementation -->
+        <button id="engage-btn" onclick="toggleEngage()">
+          <span id="engage-main-text">ENGAGE</span>
+          <span id="engage-sub">Tap to arm system</span>
+        </button>
+
+        <!-- hidden compat elements for jsmain.js -->
+        <div style="display:none">
+          <div id="autopilot-btn"><span id="autopilot-status"></span></div>
+          <div id="exp-auto-btn"><span id="exp-auto-status"></span></div>
+          <div id="lane-follow-btn"><span id="lane-follow-status"></span></div>
+          <span id="engage-status"></span>
+        </div>
+
+        <!-- DRIVE MODE PRESETS -->
+        <div id="drive-mode-card">
+          <div id="drive-mode-label">Drive Mode</div>
+          <div id="drive-mode-status">MANUAL</div>
+          <div class="mode-grid">
+            <button class="mode-btn" id="mode-demo" onclick="activateMode('demo')">
+              <span class="mode-label">DEMO</span>
+              <div class="mode-bar"></div>
+              <span class="mode-sub">Straight</span>
+            </button>
+            <button class="mode-btn" id="mode-lane" onclick="activateMode('lane')">
+              <span class="mode-label">LANE</span>
+              <div class="mode-bar"></div>
+              <span class="mode-sub">Vision</span>
+            </button>
+            <button class="mode-btn" id="mode-auto" onclick="activateMode('auto')">
+              <span class="mode-label">AUTO</span>
+              <div class="mode-bar"></div>
+              <span class="mode-sub">Outdoor</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- WASD -->
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <div class="wasd-lockout-banner" id="wasd-lockout-banner">GPS navigation active — manual control disabled</div>
+          <div id="wasd-wrap">
+            <div style="display:flex;justify-content:center;margin-bottom:8px;">
+              <div class="keys" id="key-w">W</div>
+            </div>
+            <div id="key-val" style="display:none;"><span id="pos-vals">0,0</span></div>
+            <div style="display:flex;gap:8px;">
+              <div class="keys" id="key-a">A</div>
+              <div class="keys" id="key-s">S</div>
+              <div class="keys" id="key-d">D</div>
+            </div>
+            <div style="text-align:center;margin-top:8px;">
+              <span style="font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;">x,y: </span>
+              <span id="pos-vals-display" style="font-size:9px;color:rgba(255,77,0,0.5);font-family:'JetBrains Mono',monospace;">0,0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts hidden, canvases kept for jsmain.js -->
+        <div style="display:none;">
+          <canvas id="chart-ping"></canvas>
+          <canvas id="chart-battery"></canvas>
+        </div>
+
+        <!-- Actuator log -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+            <span style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:0.2em;font-weight:700;font-family:'JetBrains Mono',monospace;">ACTUATOR_LOG</span>
+            <div style="display:flex;gap:10px;">
+              <button id="log-pause-btn" style="font-size:8px;color:var(--muted);background:none;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;font-family:'JetBrains Mono',monospace;">Pause</button>
+              <button id="log-clear-btn" style="font-size:8px;color:var(--muted);background:none;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;font-family:'JetBrains Mono',monospace;">Clear</button>
+            </div>
+          </div>
+          <div id="actuator-log"></div>
+        </div>
+
+      </div><!-- /tab-controls -->
+    </div><!-- /main-content -->
+
+    <!-- BOTTOM NAV -->
+    <nav id="bottom-nav">
+      <button class="nav-tab active" id="nav-tab-btn" onclick="switchTab('navigate')">
+        <span class="mat mat-fill" style="font-size:20px;">explore</span>
+        <span class="tab-label">Navigate</span>
+      </button>
+      <button class="nav-tab" id="controls-tab-btn" onclick="switchTab('controls')">
+        <span class="mat" style="font-size:20px;">settings_remote</span>
+        <span class="tab-label">Controls</span>
+      </button>
+    </nav>
+
+    <button class="sound" id="sound-engage" style="display:none"></button>
+    <button class="sound" id="sound-disengage" style="display:none"></button>
+    <button class="sound" id="sound-error" style="display:none"></button>
+  </div>
+
+  <script src="/static/js/jsmain.js" type="module"></script>
+
+  <script>
+  // ── ENGAGE TOGGLE ─────────────────────────────────
+  var _armed = false;
+
+  // Reset on page load
+  fetch('/engage',     {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engaged:false})});
+  fetch('/autopilot',  {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autopilot:false})});
+  fetch('/exp_auto',   {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({exp_auto:false})});
+  fetch('/lane_follow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lane_follow:false})});
+
+  function toggleEngage() {
+    _armed = !_armed;
+    var btn = document.getElementById('engage-btn');
+    var txt = document.getElementById('engage-main-text');
+    var sub = document.getElementById('engage-sub');
+    fetch('/engage', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engaged:_armed})});
+    if (_armed) {
+      btn.classList.add('armed');
+      txt.innerHTML = '⬛ STOP';
+      sub.textContent = 'ARMED — tap to disengage';
+    } else {
+      btn.classList.remove('armed');
+      txt.innerHTML = 'ENGAGE';
+      sub.textContent = 'Tap to arm system';
+      // Kill all modes
+      setAllModes(false, false, false);
+      deactivateAllModes();
+    }
+  }
+
+  // ── DRIVE MODE PRESETS ────────────────────────────
+  var _activeMode = null;
+
+  function setAllModes(ap, exp, lf) {
+    fetch('/autopilot',   {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autopilot:ap})});
+    fetch('/exp_auto',    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({exp_auto:exp})});
+    fetch('/lane_follow', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lane_follow:lf})});
+  }
+
+  function deactivateAllModes() {
+    ['mode-demo','mode-lane','mode-auto'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('active-mode');
+    });
+    document.getElementById('drive-mode-status').textContent = 'MANUAL';
+    _activeMode = null;
+  }
+
+  function activateMode(mode) {
+    // Toggle off if already active
+    if (_activeMode === mode) {
+      setAllModes(false, false, false);
+      deactivateAllModes();
+      return;
+    }
+    deactivateAllModes();
+    _activeMode = mode;
+    var btn = document.getElementById('mode-' + mode);
+    if (btn) btn.classList.add('active-mode');
+    if (mode === 'demo') {
+      setAllModes(true, false, false);
+      document.getElementById('drive-mode-status').textContent = 'DEMO';
+    } else if (mode === 'lane') {
+      setAllModes(false, false, true);
+      document.getElementById('drive-mode-status').textContent = 'LANE';
+    } else if (mode === 'auto') {
+      setAllModes(false, true, true);
+      document.getElementById('drive-mode-status').textContent = 'AUTO';
+    }
+  }
+
+  // ── TAB SWITCHING ─────────────────────────────────
+  function switchTab(tab) {
+    document.getElementById('tab-navigate').classList.toggle('active', tab === 'navigate');
+    document.getElementById('tab-controls').classList.toggle('active', tab === 'controls');
+    document.getElementById('nav-tab-btn').classList.toggle('active', tab === 'navigate');
+    document.getElementById('controls-tab-btn').classList.toggle('active', tab === 'controls');
+    if (tab === 'navigate') setTimeout(function() { if (map) map.invalidateSize(); }, 120);
+  }
+
+  // ── GPS + MAP ──────────────────────────────────────
+  var map = null, scooterMarker = null, destMarker = null;
+  window._navState = 'idle';
+  window._clickedGoal = null;
+
+  function haversine(la1,lo1,la2,lo2) {
+    var R=6371000,r=Math.PI/180,p1=la1*r,p2=la2*r,dp=(la2-la1)*r,dl=(lo2-lo1)*r;
+    var a=Math.sin(dp/2)*Math.sin(dp/2)+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  function calcEta(dm,kn) {
+    if (!kn||kn<0.5) return '--';
+    var s=Math.round(dm/(kn*0.5144));
+    return s>90?(s/60).toFixed(1)+' min':s+' sec';
+  }
+  function dotIcon(color) {
+    return L.divIcon({className:'',html:'<div style="width:13px;height:13px;background:'+color+';border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 8px '+color+';"></div>',iconAnchor:[6,6]});
+  }
+  function initMap(lat,lon) {
+    if (map) return;
+    document.getElementById('map-nofix').style.display='none';
+    map=L.map('map').setView([lat,lon],18);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OpenStreetMap'}).addTo(map);
+    scooterMarker=L.marker([lat,lon],{icon:dotIcon('#00E676')}).addTo(map).bindPopup('MetroMove');
+    map.on('click',function(e) {
+      if (window._navState!=='idle') return;
+      var clat=e.latlng.lat.toFixed(6),clon=e.latlng.lng.toFixed(6);
+      if (destMarker) map.removeLayer(destMarker);
+      destMarker=L.marker([clat,clon],{icon:dotIcon('#FF4D00')}).addTo(map).bindPopup('Destination').openPopup();
+      window._clickedGoal={name:'Destination',lat:parseFloat(clat),lon:parseFloat(clon),alt:0};
+      document.getElementById('summon-coords').textContent=clat+', '+clon;
+      document.getElementById('summon-btn').style.display='block';
+      document.getElementById('gps-status').textContent=clat+', '+clon+' — tap summon';
+      document.getElementById('gps-status').style.color='var(--orange)';
+      document.getElementById('gps-pill').className='nav';
+      document.getElementById('gps-icon').style.color='var(--orange)';
+    });
+  }
+  function pollGPS() {
+    fetch('/gps').then(function(r){return r.json();}).then(function(d) {
+      if (d.status===0&&d.lat&&!isNaN(d.lat)) {
+        if (window._navState==='idle'&&!window._clickedGoal) {
+          document.getElementById('gps-status').textContent=d.lat.toFixed(5)+', '+d.lon.toFixed(5);
+          document.getElementById('gps-status').style.color='var(--accent)';
+          document.getElementById('gps-pill').className='fix';
+          document.getElementById('gps-icon').style.color='var(--accent)';
+        }
+        var spd=document.querySelector('#speed-display .spd-val');
+        if (spd) spd.innerHTML=(d.speed_knots*1.852).toFixed(1)+'<span class="spd-unit">KM/H</span>';
+        initMap(d.lat,d.lon);
+        if (scooterMarker) scooterMarker.setLatLng([d.lat,d.lon]);
+        if (window._clickedGoal) {
+          var dist=haversine(d.lat,d.lon,window._clickedGoal.lat,window._clickedGoal.lon);
+          var dm=dist<1000?Math.round(dist)+'<span style="font-size:11px;margin-left:3px;font-weight:500;">m</span>':(dist/1000).toFixed(2)+'<span style="font-size:11px;margin-left:3px;font-weight:500;">km</span>';
+          document.getElementById('nav-distance').innerHTML=dm;
+          document.getElementById('nav-eta').textContent=calcEta(dist,d.speed_knots);
+          document.getElementById('nav-speed').textContent=(d.speed_knots||0).toFixed(2)+' kn';
+        }
+        var batEl=document.getElementById('battery');
+        if (batEl&&batEl.textContent!=='-') document.getElementById('nav-battery').textContent=batEl.textContent;
+      } else {
+        if (window._navState==='idle') {
+          document.getElementById('gps-status').textContent='Waiting for GPS fix...';
+          document.getElementById('gps-status').style.color='var(--muted)';
+          document.getElementById('gps-pill').className='';
+          document.getElementById('gps-icon').style.color='var(--muted)';
+        }
+      }
+    }).catch(function(){});
+  }
+  function pollNavStatus() {
+    fetch('/nav_status').then(function(r){return r.json();}).then(function(d) {
+      if (!d.status) return;
+      var s=d.status;
+      if (s.startsWith('ARRIVED')) {
+        setNavState('arrived');
+      } else if (s.startsWith('Navigating')||s.startsWith('Crawling')||s.startsWith('Acquiring')||s.startsWith('Heading')) {
+        setNavState('navigating');
+        var dm=s.match(/dist=(\d+)m/); if (dm) document.getElementById('nav-dist').textContent=dm[1]+' m';
+        var bm=s.match(/bearing=(\d+)deg/); if (bm) document.getElementById('nav-bearing').textContent=bm[1]+'°';
+        document.getElementById('nav-log').textContent=s;
+        document.getElementById('gps-status').textContent='Navigating...';
+        document.getElementById('gps-status').style.color='var(--yellow)';
+        document.getElementById('gps-pill').className='nav';
+      } else if (s.startsWith('LIDAR STOP')) {
+        setNavState('navigating');
+        document.getElementById('nav-dist').innerHTML='<span style="color:var(--red)">&#9888; STOP</span>';
+        document.getElementById('nav-log').textContent=s;
+      }
+    }).catch(function(){});
+  }
+  function setNavState(state) {
+    window._navState=state;
+    document.getElementById('nav-idle').style.display=state==='idle'?'block':'none';
+    document.getElementById('nav-active').style.display=state==='navigating'?'block':'none';
+    document.getElementById('nav-arrived').style.display=state==='arrived'?'block':'none';
+    var wrap=document.getElementById('wasd-wrap'),banner=document.getElementById('wasd-lockout-banner');
+    wrap.classList.toggle('locked',state==='navigating');
+    banner.style.display=state==='navigating'?'block':'none';
+  }
+  function doSummon(goal) {
+    fetch('/summon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(goal)})
+      .then(function() {
+        // Auto-engage and set GPS+lane mode
+        if (!_armed) toggleEngage();
+        setAllModes(true,false,true);
+        setNavState('navigating');
+        document.getElementById('nav-log').textContent='Starting navigation...';
+        document.getElementById('nav-dist').textContent='..';
+      });
+  }
+  function cancelNav() {
+    fetch('/summon_cancel',{method:'POST'}).catch(function(){});
+    setAllModes(false,false,false);
+    fetch('/engage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engaged:false})});
+    _armed=false;
+    document.getElementById('engage-btn').classList.remove('armed');
+    document.getElementById('engage-main-text').textContent='ENGAGE';
+    document.getElementById('engage-sub').textContent='Tap to arm system';
+    deactivateAllModes();
+    if (destMarker&&map){map.removeLayer(destMarker);destMarker=null;}
+    window._clickedGoal=null;
+    document.getElementById('summon-btn').style.display='none';
+    document.getElementById('nav-distance').innerHTML='--<span style="font-size:11px;margin-left:3px;font-weight:500;">m</span>';
+    document.getElementById('gps-status').style.color='var(--muted)';
+    document.getElementById('gps-pill').className='';
+    document.getElementById('gps-icon').style.color='var(--muted)';
+    setNavState('idle');
+  }
+
+  window.addEventListener('beforeunload',function() {
+    navigator.sendBeacon('/engage',JSON.stringify({engaged:false}));
+    navigator.sendBeacon('/autopilot',JSON.stringify({autopilot:false}));
+    navigator.sendBeacon('/exp_auto',JSON.stringify({exp_auto:false}));
+    navigator.sendBeacon('/lane_follow',JSON.stringify({lane_follow:false}));
+  });
+
+  document.addEventListener('DOMContentLoaded',function() {
+    pollGPS(); setInterval(pollGPS,1000); setInterval(pollNavStatus,1000);
+    document.getElementById('summon-btn').addEventListener('click',function(){if(window._clickedGoal)doSummon(window._clickedGoal);});
+    document.getElementById('cancel-btn').addEventListener('click',cancelNav);
+    document.getElementById('arrived-ok-btn').addEventListener('click',cancelNav);
+    var pv=document.getElementById('pos-vals');
+    if (pv) new MutationObserver(function(){var d=document.getElementById('pos-vals-display');if(d)d.textContent=pv.textContent;}).observe(pv,{childList:true,characterData:true,subtree:true});
+    var nav=document.getElementById('bottom-nav');
+    function fixNav(){nav.style.left='50%';nav.style.transform='translateX(-50%)';nav.style.maxWidth='480px';}
+    fixNav(); window.addEventListener('resize',fixNav);
+  });
+  </script>
+</body>
+</html>

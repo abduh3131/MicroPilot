@@ -1,0 +1,27 @@
+flowchart TD
+    A["USB Webcam\n640x480 @ 20fps"] --> B["webcam_capture.py"]
+    B --> C["/tmp/camera_frame.jpg"]
+    C --> D["lane_follow.py"]
+    D --> E["sidewalk_adapter.py\nRGB ▶ SegFormer-B0 ▶ Centerline"]
+    E --> F["/tmp/model_output.json"]
+
+    D -->|"Lane Follow mode:\nwrites joystick directly"| H["/tmp/joystick"]
+
+    F -->|"Exp Auto mode"| G["exp_auto.py\nPure pursuit + throttle"]
+    G -->|writes| H
+
+    H --> I["output_serial.py"]
+    I -->|"3 values:\nthrottle, steering, lidar_flag"| J["Arduino"]
+    J --> K["Scooter Motors"]
+
+    style A fill:#1a3a5c,color:#fff,stroke:#0d1f33
+    style B fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style C fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style D fill:#1b4332,color:#fff,stroke:#0d2618
+    style E fill:#1b4332,color:#fff,stroke:#0d2618
+    style F fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style G fill:#7b2d26,color:#fff,stroke:#4a1a17
+    style H fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style I fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style J fill:#3d1f56,color:#fff,stroke:#261338
+    style K fill:#111111,color:#fff,stroke:#000000

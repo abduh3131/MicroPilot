@@ -1,0 +1,35 @@
+flowchart TD
+    LF["lane_follow.py"] -->|"adapter.run(frame)"| BA["BaseModelAdapter\n(base_adapter.py)"]
+
+    BA --> SW["sidewalk_adapter.py\n(active on both vehicles)"]
+    BA --> SC["supercombo_adapter.py\n(optional, not default)"]
+
+    SW --> SW1["RGB input"]
+    SW1 --> SW2["SegFormer inference"]
+    SW2 --> SW3["Sidewalk mask"]
+    SW3 --> SW4["Centerline steering"]
+
+    SC --> SC1["YUV input"]
+    SC1 --> SC2["Supercombo inference"]
+    SC2 --> SC3["6120 float output"]
+    SC3 --> SC4["Lane/path steering"]
+
+    SW4 --> RET["Returns:\nsteering, confidence,\nlane_info, plan_info"]
+    SC4 --> RET
+
+    RET --> MO["/tmp/model_output.json"]
+
+    style LF fill:#1a3a5c,color:#fff,stroke:#0d1f33
+    style BA fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style SW fill:#1b4332,color:#fff,stroke:#0d2618
+    style SC fill:#3a3a3a,color:#fff,stroke:#222
+    style SW1 fill:#1b4332,color:#fff,stroke:#0d2618
+    style SW2 fill:#1b4332,color:#fff,stroke:#0d2618
+    style SW3 fill:#1b4332,color:#fff,stroke:#0d2618
+    style SW4 fill:#1b4332,color:#fff,stroke:#0d2618
+    style SC1 fill:#3a3a3a,color:#fff,stroke:#222
+    style SC2 fill:#3a3a3a,color:#fff,stroke:#222
+    style SC3 fill:#3a3a3a,color:#fff,stroke:#222
+    style SC4 fill:#3a3a3a,color:#fff,stroke:#222
+    style RET fill:#7b2d26,color:#fff,stroke:#4a1a17
+    style MO fill:#1a1a2e,color:#fff,stroke:#0d0d1a

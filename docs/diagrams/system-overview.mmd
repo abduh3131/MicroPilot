@@ -1,0 +1,41 @@
+flowchart TD
+    subgraph Jetson["Jetson (Orin NX or Xavier NX)"]
+        CAM["USB Webcam"] --> WC["webcam_capture.py"]
+        WC --> CF["/tmp/camera_frame.jpg"]
+        CF --> LF["lane_follow.py\n(model loop)"]
+        LF --> SA["sidewalk_adapter.py\n(SegFormer)"]
+        SA --> MO["/tmp/model_output.json"]
+
+        LF -->|"Lane Follow mode:\nwrites joystick directly"| JS["/tmp/joystick"]
+
+        MO -->|"Exp Auto mode"| EA["exp_auto.py\n(main autonomy)"]
+        EA -->|writes| JS
+
+        JS --> OS["output_serial.py"]
+
+        WEB["Web UI :5000\n(bodyteleop)"] -->|"/tmp/engage"| LF
+        WEB -->|"/tmp/lane_follow"| LF
+        WEB -->|"/tmp/exp_auto"| EA
+        WEB -->|"manual joystick"| JS
+
+        VP["virtual_panda.py"] -->|cereal| OP["openpilot daemons\n(stock, untouched)"]
+    end
+
+    OS -->|serial| ARD["Arduino"]
+    ARD --> MOT["Motors"]
+
+    style Jetson fill:#0d0d0d,stroke:#333,color:#fff
+    style CAM fill:#1a3a5c,color:#fff,stroke:#0d1f33
+    style WC fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style CF fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style LF fill:#1b4332,color:#fff,stroke:#0d2618
+    style SA fill:#1b4332,color:#fff,stroke:#0d2618
+    style MO fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style EA fill:#7b2d26,color:#fff,stroke:#4a1a17
+    style JS fill:#1a1a2e,color:#fff,stroke:#0d0d1a
+    style OS fill:#2c2c2c,color:#fff,stroke:#1a1a1a
+    style WEB fill:#1a3a5c,color:#fff,stroke:#0d1f33
+    style VP fill:#3a3a3a,color:#fff,stroke:#222
+    style OP fill:#3a3a3a,color:#fff,stroke:#222
+    style ARD fill:#3d1f56,color:#fff,stroke:#261338
+    style MOT fill:#111111,color:#fff,stroke:#000000
