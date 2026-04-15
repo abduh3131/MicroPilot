@@ -1,4 +1,5 @@
-# These are videos are of the final results for the autonomous escooter
+# Final Results Videos for the Autonomous Scooter
 
+The videos showing the final results of the autonomous scooter project are available here:
 
-# link: https://drive.google.com/drive/folders/1tFv0rT8fHHvPKYOHfogAmTO7J7nurfiE
+https://drive.google.com/drive/folders/1tFv0rT8fHHvPKYOHfogAmTO7J7nurfIE
